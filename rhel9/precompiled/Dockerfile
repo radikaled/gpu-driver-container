@@ -121,12 +121,7 @@ COPY --from=builder /lib/modules/${KERNEL_VERSION_NOARCH}.${BUILD_ARCH}/kernel/d
 # Install the Driver modules
 RUN dnf install -y /rpms/kmod-nvidia-*.rpm
 
-# Copy the rhsm-register script to enable subscription-manager during build time
-COPY --chmod=744 ./rhsm-register /usr/local/bin/rhsm-register
-
-RUN --mount=type=secret,id=RHSM_ORG,target=/run/secrets/RHSM_ORG \
-    --mount=type=secret,id=RHSM_ACTIVATIONKEY,target=/run/secrets/RHSM_ACTIVATIONKEY \
-    export DRIVER_STREAM=$(echo ${DRIVER_VERSION} | cut -d '.' -f 1) \
+RUN export DRIVER_STREAM=$(echo ${DRIVER_VERSION} | cut -d '.' -f 1) \
     && if [ "${DRIVER_STREAM_TYPE}" == "development" ] ; then \
         curl -sLOf ${BASE_URL}/${DRIVER_VERSION}/NVIDIA-Linux-${TARGET_ARCH}-${DRIVER_VERSION}.run \
         sh ./NVIDIA-Linux-${TARGET_ARCH}-${DRIVER_VERSION}.run \
@@ -138,8 +133,7 @@ RUN --mount=type=secret,id=RHSM_ORG,target=/run/secrets/RHSM_ORG \
         && rm NVIDIA-Linux-${TARGET_ARCH}-${DRIVER_VERSION}.run ; \
     else \
         CUDA_VERSION_ARRAY=(${CUDA_VERSION//./ }) && CUDA_DASHED_VERSION=${CUDA_VERSION_ARRAY[0]}-${CUDA_VERSION_ARRAY[1]} \
-        && rm /etc/rhsm-host \
-        && /usr/local/bin/rhsm-register \
+        && rm -rf /etc/rhsm-host \
         && dnf -y module enable nvidia-driver:${DRIVER_STREAM}/default \
         && dnf install -y \
             nvidia-driver-cuda-${DRIVER_VERSION} \
@@ -154,11 +148,10 @@ RUN --mount=type=secret,id=RHSM_ORG,target=/run/secrets/RHSM_ORG \
             dnf module enable -y nvidia-driver:${DRIVER_BRANCH} && \
             dnf install -y nvidia-fabric-manager-${DRIVER_VERSION} libnvidia-nscq-${DRIVER_BRANCH}-${DRIVER_VERSION} ; \
         fi \
-        && subscription-manager unregister ; \
+        && ln -s /run/secrets/rhsm /etc/rhsm-host ; \
     fi
 
-RUN dnf clean all \
-    && rm /usr/local/bin/rhsm-register
+RUN dnf clean all
 
 LABEL io.k8s.display-name="NVIDIA Driver Container"
 LABEL name="NVIDIA Driver Container"
