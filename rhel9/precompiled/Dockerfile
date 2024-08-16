@@ -27,8 +27,8 @@ RUN useradd -u 1001 -m -s /bin/bash builder
 USER builder
 
 WORKDIR /home/builder
-COPY --chown=1001:0 public_key.der public_key.der
-COPY --chown=1001:0 private_key.priv private_key.priv
+COPY --from=signer --chown=1001:0 public_key.der public_key.der
+COPY --from=signer --chown=1001:0 private_key.priv private_key.priv
 
 RUN export KVER=$(echo ${KERNEL_VERSION} | cut -d '-' -f 1) \
         KREL=$(echo ${KERNEL_VERSION} | cut -d '-' -f 2 | sed 's/\.el._.\..\+$//') \
